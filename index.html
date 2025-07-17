@@ -142,23 +142,21 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- Database Explanation (Why not SQL?) ---
-        // This application uses Google Firestore, a modern NoSQL cloud database.
-        // It's like a more powerful, real-time version of a JSON file stored online.
-        // We use this instead of a traditional SQL database (like MySQL or PostgreSQL)
-        // because connecting directly from a user's web browser to an SQL database is
-        // a major security risk. Firestore is designed for this exact use case,
-        // providing secure, real-time data storage for web and mobile apps.
-        // All your data (notes, completed days) is stored securely in your own user document.
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+          apiKey: "AIzaSyClsqKivsO2uowSUFfHGc3z2tQGbUcnxtE",
+          authDomain: "wiprotrainigtraker.firebaseapp.com",
+          projectId: "wiprotrainigtraker",
+          storageBucket: "wiprotrainigtraker.appspot.com",
+          messagingSenderId: "296096962739",
+          appId: "1:296096962739:web:a4a694dd8e6587d0f1b8c6",
+          measurementId: "G-M25QESX9YG"
+        };
 
-        const firebaseConfig = typeof __firebase_config !== 'undefined' 
-            ? JSON.parse(__firebase_config) 
-            : { apiKey: "DEMO_KEY", authDomain: "DEMO", projectId: "DEMO" };
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'wipro-training-tracker-app';
-        
+        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
@@ -313,6 +311,8 @@
         }
 
         function getDocRef() {
+            // This path needs to be consistent, using a static app ID for simplicity when self-hosting
+            const appId = 'wipro-training-tracker-selfhosted';
             return doc(db, `artifacts/${appId}/users/${userId}/wipro-training-tracker/progress`);
         }
 
@@ -335,22 +335,16 @@
             const newNotes = dayModalNotes.value;
             const isCompleted = dayModalCompleted.checked;
 
-            // This is the corrected, more robust way to update nested data.
-            // It creates a deep copy of the existing data to avoid race conditions.
             const updatedUserData = JSON.parse(JSON.stringify(userData));
 
-            // Ensure the dailyData object for the specific date exists before setting properties.
             if (!updatedUserData.dailyData[currentlyEditingDate]) {
                 updatedUserData.dailyData[currentlyEditingDate] = {};
             }
             
-            // Update the properties for the specific day.
             updatedUserData.dailyData[currentlyEditingDate].completed = isCompleted;
             updatedUserData.dailyData[currentlyEditingDate].notes = newNotes;
 
             try {
-                // Save the entire updated user data object.
-                // This replaces the previous method and is more reliable.
                 await setDoc(docRef, updatedUserData);
                 dayModal.classList.add('hidden');
                 showNotification('Progress saved!');
@@ -402,18 +396,10 @@
             if (user) {
                 startApp(user);
             } else {
-                const initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                if (initialToken) {
-                    signInWithCustomToken(auth, initialToken).catch((error) => {
-                        console.error("Custom token sign-in failed, falling back to anonymous.", error);
-                        signInAnonymously(auth);
-                    });
-                } else {
-                    signInAnonymously(auth).catch((error) => {
-                        console.error("Anonymous sign-in failed:", error);
-                        loadingSpinner.innerHTML = '<p class="text-red-500">Authentication Failed. Please refresh the page.</p>';
-                    });
-                }
+                signInAnonymously(auth).catch((error) => {
+                    console.error("Anonymous sign-in failed:", error);
+                    loadingSpinner.innerHTML = '<p class="text-red-500">Authentication Failed. Please refresh the page.</p>';
+                });
             }
         });
     </script>
