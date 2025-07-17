@@ -63,12 +63,24 @@
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 flex items-center justify-center min-h-screen p-4">
 
+    <div id="login-screen" class="w-full max-w-sm hidden">
+        <div class="bg-white dark:bg-gray-800 shadow-2xl rounded-2xl p-8">
+            <h2 class="text-center text-3xl font-bold text-blue-600 dark:text-blue-400">Welcome Back!</h2>
+            <p class="text-center text-gray-500 dark:text-gray-400 mt-2">Please log in with your Wipro ID.</p>
+            <div class="mt-8">
+                <label for="login-wipro-id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Wipro ID</label>
+                <input type="text" id="login-wipro-id" class="mt-1 block w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Enter your unique Wipro ID">
+                <button id="login-btn" class="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">Login</button>
+            </div>
+        </div>
+    </div>
+
     <div id="loading-spinner" class="text-center">
         <svg class="animate-spin h-10 w-10 text-blue-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
-        <p class="mt-2 text-lg font-medium">Loading Your Training Tracker...</p>
+        <p id="loading-text" class="mt-2 text-lg font-medium">Authenticating...</p>
     </div>
 
     <main id="app-container" class="hidden w-full max-w-5xl bg-white dark:bg-gray-800 shadow-2xl rounded-2xl p-6 md:p-8">
@@ -77,9 +89,9 @@
                 <h1 class="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">Wipro Training Tracker</h1>
                 <p class="text-gray-500 dark:text-gray-400 mt-2">Your journey from July 14th to August 30th, 2025</p>
             </div>
-            <div class="flex items-center gap-2 mt-4 md:mt-0 w-full md:w-auto">
-                <input type="text" id="wipro-id-input" placeholder="Enter Wipro ID" class="bg-gray-100 dark:bg-gray-700 p-2 rounded-lg border-2 border-transparent focus:border-blue-500 focus:ring-0 w-full md:w-auto">
-                <button id="save-wipro-id-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg transition-colors">Save</button>
+            <div class="flex items-center gap-4 mt-4 md:mt-0 w-full md:w-auto">
+                <p class="text-sm font-medium text-gray-600 dark:text-gray-300">Logged in as: <strong id="display-wipro-id" class="font-bold"></strong></p>
+                <button id="logout-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-lg transition-colors">Logout</button>
             </div>
         </div>
 
@@ -98,14 +110,9 @@
             <div id="calendar-july"></div>
             <div id="calendar-august"></div>
         </div>
-        
-        <div class="text-center mt-8 text-xs text-gray-400 dark:text-gray-500">
-            <p>Your progress is saved automatically. Sundays are your vacation days!</p>
-            <p class="font-mono mt-1">User ID: <span id="user-id"></span></p>
-        </div>
     </main>
 
-    <!-- Sunday Modal -->
+    <!-- Modals -->
     <div id="sunday-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50 p-4">
         <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl text-center max-w-sm w-full">
             <h3 class="text-2xl font-bold text-yellow-500 dark:text-yellow-400">It's a Sunday! 🌴</h3>
@@ -114,7 +121,6 @@
         </div>
     </div>
 
-    <!-- Day Details Modal -->
     <div id="day-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50 p-4">
         <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl max-w-md w-full">
             <h3 id="day-modal-title" class="text-2xl font-bold text-gray-800 dark:text-gray-200"></h3>
@@ -135,7 +141,6 @@
         </div>
     </div>
 
-    <!-- Notification Toast -->
     <div id="notification-toast" class="fixed top-5 right-5 bg-green-500 text-white py-3 px-6 rounded-lg shadow-xl hidden z-50 transform translate-x-full">
         <p id="notification-message"></p>
     </div>
@@ -145,7 +150,6 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Your web app's Firebase configuration
         const firebaseConfig = {
           apiKey: "AIzaSyClsqKivsO2uowSUFfHGc3z2tQGbUcnxtE",
           authDomain: "wiprotrainigtraker.firebaseapp.com",
@@ -156,23 +160,27 @@
           measurementId: "G-M25QESX9YG"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        let userId = null;
-        let userData = { wiproId: '', dailyData: {} };
+        let wiproId = null;
+        let userData = { dailyData: {} };
         let firestoreUnsubscribe = null;
         let currentlyEditingDate = null;
+        let isInitialLoad = true;
 
+        const loginScreen = document.getElementById('login-screen');
+        const loginInput = document.getElementById('login-wipro-id');
+        const loginBtn = document.getElementById('login-btn');
         const loadingSpinner = document.getElementById('loading-spinner');
+        const loadingText = document.getElementById('loading-text');
         const appContainer = document.getElementById('app-container');
+        const displayWiproIdEl = document.getElementById('display-wipro-id');
+        const logoutBtn = document.getElementById('logout-btn');
+        
         const daysCompletedEl = document.getElementById('days-completed');
         const daysRemainingEl = document.getElementById('days-remaining');
-        const userIdEl = document.getElementById('user-id');
-        const wiproIdInput = document.getElementById('wipro-id-input');
-        const saveWiproIdBtn = document.getElementById('save-wipro-id-btn');
         
         const sundayModal = document.getElementById('sunday-modal');
         const sundayMessageEl = document.getElementById('sunday-message');
@@ -196,11 +204,6 @@
             "You did great this week! Rest up, recharge, and get ready to carry this momentum into the next week.",
             "Another week down, another step closer to your goal. Enjoy your break!",
             "Success is the sum of small efforts, repeated day-in and day-out. You're doing it! Relax today.",
-            "The expert in anything was once a beginner. Keep learning, keep growing. Enjoy your Sunday!",
-            "Rest is not idleness. It's a vital part of your progress. Have a wonderful Sunday!",
-            "Look how far you've come! Be proud of your work this week and enjoy this day of rest.",
-            "Your dedication is inspiring. Take today for yourself, you've earned it!",
-            "Keep your eyes on the prize, but don't forget to enjoy the journey. Happy Sunday!"
         ];
 
         function showNotification(message, isError = false) {
@@ -222,7 +225,7 @@
             d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
             d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
             var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
-            var weekNo = Math.ceil(( ( (d - yearStart) / 86400000) + 1)/7);
+            var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
             return weekNo;
         }
         
@@ -238,6 +241,7 @@
 
         function createCalendar(containerId, year, month) {
             const container = document.getElementById(containerId);
+            if (!container) return;
             const monthName = new Date(year, month).toLocaleString('default', { month: 'long' });
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             const firstDayIndex = new Date(year, month, 1).getDay();
@@ -311,26 +315,15 @@
         }
 
         function getDocRef() {
-            // This path needs to be consistent, using a static app ID for simplicity when self-hosting
-            const appId = 'wipro-training-tracker-selfhosted';
-            return doc(db, `artifacts/${appId}/users/${userId}/wipro-training-tracker/progress`);
-        }
-
-        async function saveWiproId() {
-            if (!userId) return;
-            const newId = wiproIdInput.value;
-            const docRef = getDocRef();
-            try {
-                await setDoc(docRef, { wiproId: newId }, { merge: true });
-                showNotification('Wipro ID saved!');
-            } catch (error) {
-                console.error("Error saving Wipro ID:", error);
-                showNotification('Error saving ID. Check console.', true);
-            }
+            return doc(db, `wipro-tracker-users/${wiproId}`);
         }
 
         async function saveDayDetails() {
-            if (!userId || !currentlyEditingDate) return;
+            if (!wiproId || !currentlyEditingDate) return;
+            
+            // Immediately hide the modal for a better user experience.
+            dayModal.classList.add('hidden');
+
             const docRef = getDocRef();
             const newNotes = dayModalNotes.value;
             const isCompleted = dayModalCompleted.checked;
@@ -346,7 +339,6 @@
 
             try {
                 await setDoc(docRef, updatedUserData);
-                dayModal.classList.add('hidden');
                 showNotification('Progress saved!');
             } catch (error) {
                 console.error("Error updating day details:", error);
@@ -359,49 +351,85 @@
             const docRef = getDocRef();
             firestoreUnsubscribe = onSnapshot(docRef, (docSnap) => {
                 if (docSnap.exists()) {
-                    userData = { wiproId: '', dailyData: {}, ...docSnap.data() };
+                    const data = docSnap.data();
+                    userData = { dailyData: {}, ...data, dailyData: data.dailyData || {} };
                 } else {
-                    userData = { wiproId: '', dailyData: {} };
+                    userData = { dailyData: {} };
                 }
-                renderApp();
+                
+                renderUI();
+
+                if (isInitialLoad) {
+                    loadingSpinner.classList.add('hidden');
+                    appContainer.classList.remove('hidden');
+                    isInitialLoad = false;
+                }
             }, (error) => {
                 console.error("Firestore snapshot error:", error);
-                showNotification("Could not load data. Check console.", true);
+                loadingSpinner.classList.add('hidden');
+                showNotification("Could not load your data. Check console.", true);
             });
         }
         
-        function renderApp() {
-            wiproIdInput.value = userData.wiproId || '';
+        function renderUI() {
+            displayWiproIdEl.textContent = wiproId;
             createCalendar('calendar-july', YEAR, 6);
             createCalendar('calendar-august', YEAR, 7);
             updateStats();
-            document.getElementById('calendar-july').addEventListener('click', handleDayClick);
-            document.getElementById('calendar-august').addEventListener('click', handleDayClick);
         }
 
-        function startApp(user) {
-            userId = user.uid;
-            userIdEl.textContent = userId;
+        function initializeAppForUser(id) {
+            if (!id || id.trim() === '') {
+                showNotification("Wipro ID cannot be empty.", true);
+                return;
+            }
+            wiproId = id.trim().toLowerCase();
+            localStorage.setItem('wiproTrackerId', wiproId);
+            
+            isInitialLoad = true;
+            loginScreen.classList.add('hidden');
+            loadingText.textContent = 'Loading your calendar...';
+            loadingSpinner.classList.remove('hidden');
+
             setupFirestoreListener();
-            loadingSpinner.classList.add('hidden');
-            appContainer.classList.remove('hidden');
         }
 
+        function logout() {
+            if (firestoreUnsubscribe) firestoreUnsubscribe();
+            localStorage.removeItem('wiproTrackerId');
+            wiproId = null;
+            userData = { dailyData: {} };
+            appContainer.classList.add('hidden');
+            loginScreen.classList.remove('hidden');
+        }
+
+        // Add event listeners
         closeSundayModalBtn.addEventListener('click', () => sundayModal.classList.add('hidden'));
         closeDayModalBtn.addEventListener('click', () => dayModal.classList.add('hidden'));
-        saveWiproIdBtn.addEventListener('click', saveWiproId);
         saveDayModalBtn.addEventListener('click', saveDayDetails);
+        loginBtn.addEventListener('click', () => initializeAppForUser(loginInput.value));
+        logoutBtn.addEventListener('click', logout);
+        document.getElementById('calendar-july').addEventListener('click', handleDayClick);
+        document.getElementById('calendar-august').addEventListener('click', handleDayClick);
         
+        // --- Main Application Startup Logic ---
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                startApp(user);
+                const savedWiproId = localStorage.getItem('wiproTrackerId');
+                if (savedWiproId) {
+                    initializeAppForUser(savedWiproId);
+                } else {
+                    loadingSpinner.classList.add('hidden');
+                    loginScreen.classList.remove('hidden');
+                }
             } else {
                 signInAnonymously(auth).catch((error) => {
                     console.error("Anonymous sign-in failed:", error);
-                    loadingSpinner.innerHTML = '<p class="text-red-500">Authentication Failed. Please refresh the page.</p>';
+                    loadingSpinner.innerHTML = `<p class="text-red-500">Authentication service failed: ${error.message}. Please check your Firebase setup and refresh.</p>`;
                 });
             }
         });
+
     </script>
 </body>
 </html>
